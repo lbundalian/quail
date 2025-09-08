@@ -1,0 +1,10 @@
+PyYAML>=6.0
+
+[db]
+SQLAlchemy>=2.0
+
+[mongo]
+pymongo>=4.0
+
+[pandas]
+pandas>=2.0

@@ -1,0 +1,13 @@
+Metadata-Version: 2.4
+Name: quail
+Version: 0.1.0
+Summary: Quail: Snakemake-like trails for QC
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: PyYAML>=6.0
+Provides-Extra: pandas
+Requires-Dist: pandas>=2.0; extra == "pandas"
+Provides-Extra: db
+Requires-Dist: SQLAlchemy>=2.0; extra == "db"
+Provides-Extra: mongo
+Requires-Dist: pymongo>=4.0; extra == "mongo"

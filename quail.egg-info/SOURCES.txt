@@ -1,0 +1,17 @@
+pyproject.toml
+quail/__init__.py
+quail/__main__.py
+quail/cli.py
+quail/core.py
+quail/graph.py
+quail/orm.py
+quail.egg-info/PKG-INFO
+quail.egg-info/SOURCES.txt
+quail.egg-info/dependency_links.txt
+quail.egg-info/entry_points.txt
+quail.egg-info/requires.txt
+quail.egg-info/top_level.txt
+quail/reporting/json_to_junit.py
+quail/reporting/markdown_reporter.py
+tests/test_core.py
+tests/test_orm.py

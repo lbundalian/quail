@@ -1,0 +1,129 @@
+from quail.core import qtask, qcheck, CheckResult
+import pandas as pd
+from sqlalchemy import text, select, cast, Date
+
+def _table_key(ctx):
+    """Return the correct key for env['tables'] whether schema is set or not."""
+    schema = ctx.env.get("schema")
+    return f"{schema}.pricing_report" if schema else "pricing_report"
+
+
+
+@qtask(id="reflect_tables", requires=["ensure_table"])
+def reflect_tables(ctx):
+    """
+    Refresh env['tables'] so downstream tasks can use the reflected Table object.
+    Works after seeding when using SQLite; in Redshift this just ensures it's present.
+    """
+    from sqlalchemy import MetaData, Table
+    engine = ctx.env["engine"]
+    schema = ctx.env.get("schema")
+    md = MetaData(schema=schema)
+    breakpoint()
+    t = Table("pricing_report", md, schema=schema, autoload_with=engine)
+    key = f"{schema}.pricing_report" if schema else "pricing_report"
+    ctx.env.setdefault("tables", {})[key] = t
+    return {"reflected": list(ctx.env["tables"].keys())}
+
+# --- Connectivity smoke test ---
+
+@qtask(id="test_connection", requires=["reflect_tables"])
+def test_connection(ctx):
+    Session = ctx.env.get("session_factory")
+    engine = ctx.env.get("engine")
+    tables = ctx.env.get("tables", {})
+    if not (Session and engine):
+        ctx.put("connection_ok", False)
+        return {"ok": False, "error": "engine/session_factory missing from env"}
+    key = _table_key(ctx)
+    if key not in tables:
+        ctx.put("connection_ok", False)
+        return {"ok": False, "error": f"Table not reflected: {key}"}
+    # Try a trivial query and fetch one row
+    with engine.connect() as conn:
+        one = conn.execute(text("SELECT 1")).scalar()
+    with Session() as s:
+        row = s.execute(tables[key].select().limit(1)).first()
+    ok = (one == 1)
+    ctx.put("connection_ok", ok)
+    return {"ok": ok, "sample": (dict(row._mapping) if row else None)}
+
+# --- Load & summarize like your real pipeline ---
+
+@qtask(id="load_pricing_report", requires=["test_connection"])
+def load_pricing_report(ctx):
+    if not ctx.get("connection_ok"):
+        return pd.DataFrame()
+    Session = ctx.env["session_factory"]
+    t = ctx.env["tables"][_table_key(ctx)]
+    cols = [t.c.client_id, t.c.listing_id, t.c.email, t.c.calendar_date, t.c.report_date, t.c.optimized_price]
+    stmt = select(*cols)
+    if ctx.params.get("report_date"):
+        stmt = stmt.where(cast(t.c.report_date, Date) == ctx.params["report_date"])
+    with Session() as s:
+        rows = [dict(r._mapping) for r in s.execute(stmt)]
+    return pd.DataFrame(rows)
+
+@qtask(id="summarize", requires=["load_pricing_report"])
+def summarize(ctx):
+    df = ctx.get("load_pricing_report")
+    if df is None or df.empty:
+        return pd.DataFrame()
+    tmp1 = (df[df.client_id == df.listing_id]
+            .groupby("client_id")
+            .agg(email=("email","first"),
+                 unique_calendar_dates=("calendar_date","nunique"),
+                 max_optimized_price=("optimized_price","max"),
+                 min_optimized_price=("optimized_price","min"))
+            .reset_index())
+    tmp2 = (df[df.client_id != df.listing_id]
+            .groupby("client_id")
+            .agg(unique_listing_count=("listing_id","nunique"))
+            .reset_index())
+    out = tmp1.merge(tmp2, on="client_id", how="left").fillna({"unique_listing_count": 0})
+    min_listings = int(ctx.params.get("min_listing_count", 2))
+    def status_row(r):
+        if r.get("max_optimized_price", 0) == 0:  return "Fail (Max Price Zero)"
+        if r.get("min_optimized_price", 0) == 0:  return "Fail (Min Price Zero)"
+        if int(r.get("unique_listing_count", 0)) < min_listings: return f"Fail (Listing Count < {min_listings})"
+        return "Pass"
+    out["status"] = out.apply(status_row, axis=1)
+    return out
+
+# --- Checks ---
+
+@qcheck(id="qc_connection_ok", requires=["test_connection"], severity="error")
+def qc_connection_ok(ctx):
+    ok = bool(ctx.get("connection_ok"))
+    info = ctx.get("test_connection")
+    return CheckResult(
+        id="qc_connection_ok",
+        status="pass" if ok else "fail",
+        metrics={"ok": ok, **({} if not isinstance(info, dict) else {k:v for k,v in info.items() if k!='sample'})},
+        description="Connectivity and basic query against pricing_report",
+    )
+
+@qcheck(id="qc_reports_nonempty", requires=["load_pricing_report"], severity="error")
+def qc_reports_nonempty(ctx):
+    df = ctx.get("load_pricing_report")
+    return CheckResult(
+        id="qc_reports_nonempty",
+        status="pass" if df is not None and len(df) > 0 else "fail",
+        metrics={"rowcount": int(len(df) if df is not None else 0)},
+        description="pricing_report has rows for the given report_date"
+    )
+
+@qcheck(id="qc_summary_clean", requires=["summarize"], severity="error")
+def qc_summary_clean(ctx):
+    df = ctx.get("summarize")
+    if df is None or df.empty:
+        return CheckResult(id="qc_summary_clean", status="fail", metrics={"status_counts": {}},
+                           description="Summary is empty")
+    counts = df["status"].value_counts().to_dict()
+    bad = sum(v for k,v in counts.items() if str(k).startswith("Fail"))
+    return CheckResult(
+        id="qc_summary_clean",
+        status="pass" if bad == 0 else "fail",
+        metrics={"status_counts": counts},
+        description="No failing statuses in per-client summary"
+    )
