@@ -17,3 +17,7 @@ quail = "quail.cli:main"
 [build-system]
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["quail*"]
+exclude = ["tests*", "prototype*"]
