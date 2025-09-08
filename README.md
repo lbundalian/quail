@@ -12,8 +12,8 @@
 
 ### 1. Clone the repo
 ```bash
-git clone https://github.com/your-username/quailtrail.git
-cd quailtrail
+git clone https://github.com/your-username/quail.git
+cd quail
 ```
 
 ### 2. Create and activate a virtual environment
@@ -86,4 +86,4 @@ pytest -q
 
 ## 📜 License
 
-MIT License © 2025 Your Name
+MIT License © 2025 Linnaeus Bunda
