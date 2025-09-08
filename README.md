@@ -4,7 +4,7 @@
 
 # Quail
 
-**Quail** is a lightweight framework for running data quality checks and tasks, inspired by workflow engines like Snakemake but tailored for data pipelines.
+**Quail** is a lightweight framework for running data quality checks and tasks, inspired by workflow engines like Snakemake but tailored for modern data pipelines.
 
 ---
 
@@ -14,7 +14,6 @@
 ```bash
 git clone https://github.com/your-username/quail.git
 cd quail
-```
 
 ### 2. Create and activate a virtual environment
 ```bash
@@ -22,12 +21,13 @@ python -m venv .venv
 source .venv/bin/activate   # On Windows: .venv\Scripts\activate
 ```
 
-### 3. Install the package (editable mode for development)
+### 3. Install the package
+For development (auto-reflects changes):
 ```bash
 pip install -e .
 ```
 
-Alternatively, build and install the wheel:
+Or build and install the wheel:
 ```bash
 python -m pip install --upgrade build
 python -m build
@@ -36,29 +36,69 @@ pip install dist/*.whl
 
 ---
 
+## 📝 Project Conventions
+
+### Workflow files (`.ql`)
+Quail workflows should be defined in files ending with the `.ql` extension.  
+Example:
+```bash
+my_pipeline.ql
+```
+These define your **tasks** and **checks**.
+
+### Configuration (`quail.yml`)
+Every project should include a `quail.yml` that describes:
+- Environments (e.g. dev, prod)
+- Database connections
+- Parameters
+- Targets / tables
+
+Example `quail.yml`:
+```yaml
+profile: dev
+envs:
+  dev:
+    url: sqlite:///quail.db
+params:
+  schema: public
+targets:
+  daily:
+    tasks:
+      - reflect_tables
+      - run_checks
+```
+
+---
+
 ## 🚀 Usage
 
-### Run Quail via CLI
-If you’ve defined a console script in `pyproject.toml`:
+### Run Quail on a workflow
 ```bash
-quail --help
+quail run my_pipeline.ql --config quail.yml --targets daily
 ```
 
 ### Run as a Python module
 ```bash
-python -m quail
+python -m quail --config quail.yml
 ```
 
-### Import in your code
-Inside your own scripts or notebooks:
+### Import in your own code
 ```python
 from quail.core import Runner, qtask, qcheck
 
-print("Hello from Quail!")
+@qcheck(id="row_count")
+def row_count(ctx):
+    # return a CheckResult here
+    ...
+
+Runner(config="quail.yml").run("my_pipeline.ql")
 ```
 
-### Prototype example
-In `prototype/main.py` you can try:
+---
+
+## 🧪 Prototype Example
+
+For local testing you can use `prototype/main.py`:
 ```python
 from quail.core import some_func
 
@@ -76,7 +116,7 @@ python prototype/main.py
 
 ## 🧪 Testing
 
-We use **pytest** for tests:
+We use **pytest**:
 ```bash
 pip install -e ".[dev]"
 pytest -q
@@ -86,4 +126,4 @@ pytest -q
 
 ## 📜 License
 
-MIT License © 2025 Linnaeus Bunda
+MIT License © 2025 Linnaeus Bundalian
