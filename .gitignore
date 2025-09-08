@@ -1,0 +1,15 @@
+# envs & caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+
+# build outputs
+build/
+dist/
+*.egg-info/
+
+# local-only stuff
+prototype/
+.vscode/
