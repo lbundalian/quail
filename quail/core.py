@@ -4,6 +4,8 @@ from typing import Any, Dict, Callable, Optional, List, Iterable, Tuple
 import functools
 import time
 import sys
+from sqlalchemy import create_engine, MetaData, Table
+from sqlalchemy.orm import sessionmaker
 
 # --- Registries ----------------------------------------------------------------
 
@@ -293,55 +295,115 @@ def load_quail_config(path: str = "quail.yml"):
             params[k] = os.path.expandvars(v)
 
     targets = cfg.get("targets") or {}
-    default_covey = cfg.get("default_covey") or "daily"
+    default_covey = cfg.get("default_covey") or "pricing"
     return cfg, env_cfg, params, targets, default_covey, profile
-
 
 def build_env_from_orm(orm_cfg: dict):
     """
-    Minimal SQL ORM builder based on YAML block:
-      orm:
-        kind: sql
-        url: postgresql+psycopg2://...
-        schema: raw_data
-        reflect: ["pricing_report"]
+    Build DB env and (optionally) reflect tables.
 
-    Returns dict with: engine, session_factory, metadata, tables, schema
+    Supports reflect entries as:
+      - "table_name"
+      - {"name": "table_name", "schema": "schema_name", "alias": "logical_name"}
     """
-    try:
-        from sqlalchemy import create_engine, MetaData, Table  # type: ignore
-        from sqlalchemy.orm import sessionmaker  # type: ignore
-    except Exception as e:
-        raise RuntimeError("build_env_from_orm requires SQLAlchemy") from e
+    if not isinstance(orm_cfg, dict):
+        raise ValueError("envs.<profile>.orm must be a dict")
 
-    kind = (orm_cfg or {}).get("kind", "").lower()
+    kind = orm_cfg.get("kind", "sql")
     if kind != "sql":
-        raise SystemExit("Only orm.kind=sql is supported here.")
+        raise NotImplementedError(f"ORM kind '{kind}' not supported yet")
 
     url = orm_cfg.get("url")
     if not url:
-        raise SystemExit("orm.url is required (e.g., DB_URL env var).")
+        raise ValueError("envs.<profile>.orm.url is required")
 
-    schema = orm_cfg.get("schema")
-    reflect = orm_cfg.get("reflect") or []
+    default_schema = orm_cfg.get("schema")
+    reflect = orm_cfg.get("reflect", []) or []
 
-    engine = create_engine(url, pool_pre_ping=True, future=True)
-    Session = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+    engine = create_engine(url, future=True)
+    Session = sessionmaker(bind=engine, future=True)
 
-    md = MetaData(schema=schema) if schema else MetaData()
+    env = {
+        "engine": engine,
+        "session_factory": Session,
+        "schema": default_schema,
+        "reflect": reflect,  # pass-through for tasks
+    }
+
     tables = {}
-    for name in reflect:
+    registry = {}
+
+    # Reflect here, supporting both str and dict items
+    for item in reflect:
+        if isinstance(item, str):
+            name, schema, alias = item, default_schema, item
+        elif isinstance(item, dict):
+            name = item.get("name") or item.get("table")
+            if not name:
+                continue
+            schema = item.get("schema", default_schema)
+            alias = item.get("alias", name)
+        else:
+            # skip unknown entries
+            continue
+
+        md = MetaData(schema=schema)
         t = Table(name, md, schema=schema, autoload_with=engine)
         key = f"{schema}.{name}" if schema else name
         tables[key] = t
+        registry[alias] = key
 
-    return {
-        "engine": engine,
-        "session_factory": Session,
-        "metadata": md,
-        "tables": tables,
-        "schema": schema,
-    }
+    if tables:
+        env["tables"] = tables
+    if registry:
+        env["table_registry"] = registry
+
+    return env
+# def build_env_from_orm(orm_cfg: dict):
+#     """
+#     Minimal SQL ORM builder based on YAML block:
+#       orm:
+#         kind: sql
+#         url: postgresql+psycopg2://...
+#         schema: raw_data
+#         reflect: ["pricing_report"]
+
+#     Returns dict with: engine, session_factory, metadata, tables, schema
+#     """
+#     try:
+#         from sqlalchemy import create_engine, MetaData, Table  # type: ignore
+#         from sqlalchemy.orm import sessionmaker  # type: ignore
+#     except Exception as e:
+#         raise RuntimeError("build_env_from_orm requires SQLAlchemy") from e
+
+#     kind = (orm_cfg or {}).get("kind", "").lower()
+#     if kind != "sql":
+#         raise SystemExit("Only orm.kind=sql is supported here.")
+
+#     url = orm_cfg.get("url")
+#     if not url:
+#         raise SystemExit("orm.url is required (e.g., DB_URL env var).")
+
+#     schema = orm_cfg.get("schema")
+#     reflect = orm_cfg.get("reflect") or []
+
+#     engine = create_engine(url, pool_pre_ping=True, future=True)
+#     Session = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+
+#     md = MetaData(schema=schema) if schema else MetaData()
+#     tables = {}
+#     for name in reflect:
+#         t = Table(name, md, schema=schema, autoload_with=engine)
+#         key = f"{schema}.{name}" if schema else name
+#         tables[key] = t
+
+#     return {
+#         "engine": engine,
+#         "session_factory": Session,
+#         "metadata": md,
+#         "tables": tables,
+#         "schema": schema,
+#     }
 
 
 def resolve_targets(cfg_targets: dict, default_covey: str, cli_targets: Optional[List[str]]):

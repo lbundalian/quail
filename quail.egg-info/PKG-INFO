@@ -11,3 +11,133 @@ Provides-Extra: db
 Requires-Dist: SQLAlchemy>=2.0; extra == "db"
 Provides-Extra: mongo
 Requires-Dist: pymongo>=4.0; extra == "mongo"
+
+<p align="center">
+  <img src="quail.png" alt="Quail Logo" width="120"/>
+</p>
+
+# Quail
+
+**Quail** is a lightweight framework for running data quality checks and tasks, inspired by workflow engines like Snakemake but tailored for modern data pipelines.
+
+---
+
+## 📦 Installation
+
+### 1. Clone the repo
+```bash
+git clone https://github.com/your-username/quail.git
+cd quail
+
+### 2. Create and activate a virtual environment
+```bash
+python -m venv .venv
+source .venv/bin/activate   # On Windows: .venv\Scripts\activate
+```
+
+### 3. Install the package
+For development (auto-reflects changes):
+```bash
+pip install -e .
+```
+
+Or build and install the wheel:
+```bash
+python -m pip install --upgrade build
+python -m build
+pip install dist/*.whl
+```
+
+---
+
+## 📝 Project Conventions
+
+### Workflow files (`.ql`)
+Quail workflows should be defined in files ending with the `.ql` extension.  
+Example:
+```bash
+my_pipeline.ql
+```
+These define your **tasks** and **checks**.
+
+### Configuration (`quail.yml`)
+Every project should include a `quail.yml` that describes:
+- Environments (e.g. dev, prod)
+- Database connections
+- Parameters
+- Targets / tables
+
+Example `quail.yml`:
+```yaml
+profile: dev
+envs:
+  dev:
+    url: sqlite:///quail.db
+params:
+  schema: public
+targets:
+  daily:
+    tasks:
+      - reflect_tables
+      - run_checks
+```
+
+---
+
+## 🚀 Usage
+
+### Run Quail on a workflow
+```bash
+quail run my_pipeline.ql --config quail.yml --targets daily
+```
+
+### Run as a Python module
+```bash
+python -m quail --config quail.yml
+```
+
+### Import in your own code
+```python
+from quail.core import Runner, qtask, qcheck
+
+@qcheck(id="row_count")
+def row_count(ctx):
+    # return a CheckResult here
+    ...
+
+Runner(config="quail.yml").run("my_pipeline.ql")
+```
+
+---
+
+## 🧪 Prototype Example
+
+For local testing you can use `prototype/main.py`:
+```python
+from quail.core import some_func
+
+if __name__ == "__main__":
+    print("Prototype running")
+    print(some_func())
+```
+
+Run it:
+```bash
+python prototype/main.py
+```
+
+---
+
+## 🧪 Testing
+
+We use **pytest**:
+```bash
+pip install -e ".[dev]"
+pytest -q
+```
+
+---
+
+## 📜 License
+
+MIT License © 2025 Linnaeus Bundalian

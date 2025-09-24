@@ -1,3 +1,4 @@
+README.md
 pyproject.toml
 quail/__init__.py
 quail/__main__.py
