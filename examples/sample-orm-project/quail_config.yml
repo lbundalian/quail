@@ -1,0 +1,62 @@
+profile: dev
+
+# QuailTrail modules to include - points to our sample modules
+modules:
+  - quail_modules.data_quality
+
+envs:
+  dev:
+    # Database connections for the ORM services
+    sql_database:
+      url: redshift+psycopg2://awsuser:Pg68h2ZHmVjml@redshift-cluster-2.clxqnyeopl7d.us-east-1.redshift.amazonaws.com:5439/db_quibble
+      schema: raw_data
+      engine_options:
+        pool_pre_ping: true
+        pool_size: 5
+        max_overflow: 10
+    
+    mongo_database:
+      url: mongodb://localhost:27017/
+      database: sample_quality
+      timeout_minutes: 60
+  
+  prod:
+    sql_database:
+      url: ${REDSHIFT_PROD_URL}
+      schema: raw_data
+      engine_options:
+        pool_pre_ping: true
+        pool_size: 10
+        max_overflow: 20
+    
+    mongo_database:
+      url: ${MONGO_PROD_URL}
+      database: sample_quality_prod
+      timeout_minutes: 120
+
+params:
+  # Data quality parameters
+  report_date: ${REPORT_DATE:-2025-09-24}
+  
+  # Quality thresholds
+  min_completeness: 0.95
+  max_validation_errors: 0
+  min_property_quality_score: 0.8
+  min_quality_enabled_percent: 0.8
+
+targets:
+  # Sample pipeline demonstrating ORM usage
+  sample_pipeline:
+    - load_sample_data            # Initializes ORM services and loads sample data
+    - check_featurestore_quality  # Uses FeatureStoreService for quality checks
+    - check_property_quality      # Uses PropertyService for validation  
+    - generate_quality_report     # Uses QualityService to save results
+
+  # Full data quality pipeline
+  full_pipeline:
+    - load_sample_data
+    - check_featurestore_quality
+    - check_property_quality
+    - generate_quality_report
+
+default_target: "sample_pipeline"

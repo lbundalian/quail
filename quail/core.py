@@ -300,63 +300,148 @@ def load_quail_config(path: str = "quail.yml"):
 
 def build_env_from_orm(orm_cfg: dict):
     """
-    Build DB env and (optionally) reflect tables.
-
-    Supports reflect entries as:
-      - "table_name"
-      - {"name": "table_name", "schema": "schema_name", "alias": "logical_name"}
+    Build DB env using the new service-oriented architecture.
+    
+    Supports both SQL and MongoDB configurations:
+    - SQL: {"kind": "sql", "url": "...", "schema": "...", "reflect": [...]}
+    - MongoDB: {"kind": "mongo", "url": "...", "database": "..."}
     """
+    from .context import ServiceContext
+    from .database import SqlDbContext, MongoDbContext
+    
     if not isinstance(orm_cfg, dict):
         raise ValueError("envs.<profile>.orm must be a dict")
 
-    kind = orm_cfg.get("kind", "sql")
-    if kind != "sql":
-        raise NotImplementedError(f"ORM kind '{kind}' not supported yet")
+    kind = orm_cfg.get("kind", "sql").lower()
+    
+    if kind == "sql":
+        # SQL configuration
+        url = orm_cfg.get("url")
+        if not url:
+            raise ValueError("envs.<profile>.orm.url is required for SQL")
 
-    url = orm_cfg.get("url")
-    if not url:
-        raise ValueError("envs.<profile>.orm.url is required")
+        default_schema = orm_cfg.get("schema")
+        reflect = orm_cfg.get("reflect", []) or []
 
-    default_schema = orm_cfg.get("schema")
-    reflect = orm_cfg.get("reflect", []) or []
+        # Create service context with SQL configuration
+        service_config = {
+            'environment': 'dev',  # Default, can be overridden
+            'sql': {
+                'url': url,
+                'schema': default_schema,
+                'engine_options': orm_cfg.get('engine_options', {})
+            }
+        }
+        
+        service_context = ServiceContext(service_config)
+        
+        # Reflect tables if specified
+        tables = {}
+        registry = {}
+        
+        if reflect:
+            reflection_result = service_context.reflect_tables(reflect)
+            # Get the actual table objects from the SQL context
+            with service_context.sql_context as db:
+                tables = db.tables.copy()
+                registry = db.table_registry.copy()
 
-    engine = create_engine(url, future=True)
-    Session = sessionmaker(bind=engine, future=True)
+        env = {
+            "service_context": service_context,
+            "sql_service": service_context.get_sql_service(),
+            "schema": default_schema,
+            "tables": tables,
+            "table_registry": registry,
+            "reflect": reflect,  # pass-through for tasks
+        }
+        
+        # Legacy compatibility - expose engine and session_factory
+        if service_context.sql_context:
+            with service_context.sql_context as db:
+                env["engine"] = db.engine
+                env["session_factory"] = db._session_factory
 
-    env = {
-        "engine": engine,
-        "session_factory": Session,
-        "schema": default_schema,
-        "reflect": reflect,  # pass-through for tasks
-    }
+    elif kind == "mongo":
+        # MongoDB configuration
+        url = orm_cfg.get("url")
+        database = orm_cfg.get("database")
+        
+        if not url or not database:
+            raise ValueError("envs.<profile>.orm.url and database are required for MongoDB")
 
-    tables = {}
-    registry = {}
+        # Create service context with MongoDB configuration
+        service_config = {
+            'environment': 'dev',  # Default, can be overridden
+            'mongo': {
+                'url': url,
+                'database': database,
+                'timeout_minutes': orm_cfg.get('timeout_minutes', 120)
+            }
+        }
+        
+        service_context = ServiceContext(service_config)
+        
+        env = {
+            "service_context": service_context,
+            "mongo_service": service_context.get_mongo_service(),
+            "database": database,
+        }
+        
+        # Legacy compatibility - expose mongo client and db
+        if service_context.mongo_context:
+            with service_context.mongo_context as db:
+                env["mongo_client"] = db.client
+                env["mongo_db"] = db.database
 
-    # Reflect here, supporting both str and dict items
-    for item in reflect:
-        if isinstance(item, str):
-            name, schema, alias = item, default_schema, item
-        elif isinstance(item, dict):
-            name = item.get("name") or item.get("table")
-            if not name:
-                continue
-            schema = item.get("schema", default_schema)
-            alias = item.get("alias", name)
-        else:
-            # skip unknown entries
-            continue
+    elif kind == "hybrid":
+        # Both SQL and MongoDB
+        sql_config = orm_cfg.get("sql", {})
+        mongo_config = orm_cfg.get("mongo", {})
+        
+        if not sql_config.get("url") or not mongo_config.get("url"):
+            raise ValueError("Both SQL and MongoDB configurations required for hybrid mode")
 
-        md = MetaData(schema=schema)
-        t = Table(name, md, schema=schema, autoload_with=engine)
-        key = f"{schema}.{name}" if schema else name
-        tables[key] = t
-        registry[alias] = key
+        service_config = {
+            'environment': 'dev',
+            'sql': {
+                'url': sql_config['url'],
+                'schema': sql_config.get('schema'),
+                'engine_options': sql_config.get('engine_options', {})
+            },
+            'mongo': {
+                'url': mongo_config['url'], 
+                'database': mongo_config['database'],
+                'timeout_minutes': mongo_config.get('timeout_minutes', 120)
+            }
+        }
+        
+        service_context = ServiceContext(service_config)
+        
+        # Reflect SQL tables if specified
+        tables = {}
+        registry = {}
+        reflect = sql_config.get("reflect", [])
+        
+        if reflect:
+            reflection_result = service_context.reflect_tables(reflect)
+            with service_context.sql_context as db:
+                tables = db.tables.copy()
+                registry = db.table_registry.copy()
 
-    if tables:
-        env["tables"] = tables
-    if registry:
-        env["table_registry"] = registry
+        env = {
+            "service_context": service_context,
+            "sql_service": service_context.get_sql_service(),
+            "mongo_service": service_context.get_mongo_service(),
+            "quality_service": service_context.get_quality_service(),
+            "report_service": service_context.get_report_service(),
+            "schema": sql_config.get('schema'),
+            "tables": tables,
+            "table_registry": registry,
+            "reflect": reflect,
+        }
+
+    else:
+        raise NotImplementedError(f"ORM kind '{kind}' not supported. Use 'sql', 'mongo', or 'hybrid'")
 
     return env
 # def build_env_from_orm(orm_cfg: dict):

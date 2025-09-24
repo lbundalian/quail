@@ -1,19 +1,31 @@
 <p align="center">
-  <img src="quail.png" alt="Quail Logo" width="120"/>
+  <img src="quail.png" alt="QuailTrail Logo" width="120"/>
 </p>
 
-# Quail
+# QuailTrail
 
-**Quail** is a lightweight framework for running data quality checks and tasks, inspired by workflow engines like Snakemake but tailored for modern data pipelines.
+**QuailTrail** is a lightweight, Python-based data quality framework inspired by workflow engines like Snakemake. It provides a clean way to define, execute, and monitor data quality checks and tasks using a modular approach.
+
+---
+
+## 🎯 Key Features
+
+- **Modular Architecture**: Define quality checks and tasks in separate modules
+- **ORM Support**: Works seamlessly with your existing ORM patterns (SQLAlchemy, MongoEngine)
+- **Configuration-Driven**: Simple YAML configuration for environments and targets
+- **Dependency Management**: Automatic task dependency resolution
+- **Quality Checks**: Built-in support for data quality validation with severity levels
+- **Multiple Targets**: Define different execution pipelines (daily, weekly, validation suites)
 
 ---
 
 ## 📦 Installation
 
-### 1. Clone the repo
+### 1. Clone the repository
 ```bash
-git clone https://github.com/your-username/quail.git
-cd quail
+git clone https://github.com/QuibbleRM/quailtrail.git
+cd quailtrail
+```
 
 ### 2. Create and activate a virtual environment
 ```bash
@@ -27,27 +39,153 @@ For development (auto-reflects changes):
 pip install -e .
 ```
 
-Or build and install the wheel:
+---
+
+## 🚀 Quick Start
+
+### 1. Configuration (`quail_config.yml`)
+Create a configuration file that defines your modules, environments, and targets:
+
+```yaml
+profile: dev
+
+modules:
+  - quail_modules.data_quality
+
+envs:
+  dev:
+    sql_database:
+      url: your_database_url
+      schema: your_schema
+    mongo_database:
+      url: mongodb://localhost:27017/
+      database: your_database
+
+params:
+  report_date: ${REPORT_DATE:-2025-09-24}
+  min_completeness: 0.95
+
+targets:
+  daily:
+    - check_pricing_completeness
+    - check_pricing_validity
+    - generate_quality_report
+
+default_target: "daily"
+```
+
+### 2. Define Quality Modules (`quail_modules/`)
+Create modules with tasks and checks:
+
+```python
+from quail.core import qtask, qcheck, CheckResult
+
+@qtask(id="load_data")
+def load_data(ctx):
+    # Your data loading logic using ORM services
+    return {"records_loaded": 1000}
+
+@qcheck(id="check_completeness", requires=["load_data"], severity="error")
+def check_completeness(ctx):
+    # Your quality check logic
+    return CheckResult(
+        id="check_completeness",
+        status="pass",
+        metrics={"completeness_score": 0.98},
+        description="Data completeness validation"
+    )
+```
+
+### 3. Run QuailTrail
 ```bash
-python -m pip install --upgrade build
-python -m build
-pip install dist/*.whl
+# Run default target
+quail run
+
+# Run specific target
+quail run daily
+
+# Run with different profile
+quail run --profile prod
 ```
 
 ---
 
-## 📝 Project Conventions
+## 📁 Project Structure
 
-### Workflow files (`.ql`)
-Quail workflows should be defined in files ending with the `.ql` extension.  
-Example:
-```bash
-my_pipeline.ql
 ```
-These define your **tasks** and **checks**.
+your-project/
+├── quail_config.yml          # Configuration file
+├── quail_modules/             # Your quality modules
+│   ├── __init__.py
+│   └── data_quality.py        # Tasks and checks
+└── models/                    # Your ORM models (optional)
+    └── services/              # Your service layer (optional)
+```
 
-### Configuration (`quail.yml`)
-Every project should include a `quail.yml` that describes:
+---
+
+## 🔧 ORM Integration
+
+QuailTrail works seamlessly with existing ORM patterns. See the complete example in `examples/sample-orm-project/` that demonstrates:
+
+- **Models**: SQLAlchemy and MongoEngine model definitions
+- **Services**: Database service layer with context managers  
+- **Integration**: How to use services within QuailTrail tasks
+
+### Example Service Usage
+```python
+@qtask(id="load_sample_data")
+def load_sample_data(ctx):
+    # Initialize services with database contexts
+    service = FeatureStoreService(ctx.env.get("sql_database"))
+    
+    # Use service to load data
+    data = service.get_feature_store(['listing_001', 'listing_002'])
+    
+    # Store in context for other tasks
+    ctx.put('sample_data', data)
+    return {"records_loaded": len(data)}
+```
+
+---
+
+## 📖 Documentation
+
+- **[Sample ORM Project](examples/sample-orm-project/README.md)** - Complete example following dynamic-pricing-strategy patterns
+- **[Usage Guide](USAGE.md)** - Detailed usage instructions
+- **Core Concepts**:
+  - `@qtask`: Define data processing tasks
+  - `@qcheck`: Define quality validation checks  
+  - `CheckResult`: Standardized check result format
+  - Context (`ctx`): Pass data between tasks and access configuration
+
+---
+
+## 🎯 Design Philosophy
+
+QuailTrail follows these principles:
+
+1. **Configuration over Code**: Define what to run in YAML, not Python
+2. **Separation of Concerns**: Models, services, and pipeline logic are separate
+3. **ORM Agnostic**: Works with your existing database patterns
+4. **Quality First**: Built-in support for data quality validation
+5. **Developer Friendly**: Simple, intuitive Python decorators
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License.
 - Environments (e.g. dev, prod)
 - Database connections
 - Parameters

@@ -4,7 +4,13 @@ version = "0.1.0"
 description = "Quail: Snakemake-like trails for QC"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["PyYAML>=6.0"]
+dependencies = [
+    "PyYAML>=6.0",
+    "SQLAlchemy>=2.0",
+    "pandas>=2.0",
+    "pymongo>=4.0",
+    "mongoengine>=0.28.0"
+]
 
 [project.optional-dependencies]
 pandas = ["pandas>=2.0"]
@@ -12,7 +18,7 @@ db = ["SQLAlchemy>=2.0"]
 mongo = ["pymongo>=4.0"]
 
 [project.scripts]
-quail = "quail.cli:main"
+quail = "quail_cli:main"
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]
