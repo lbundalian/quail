@@ -1,54 +1,55 @@
 """
-Sample data quality module using QuailTrail with ORM pattern
+Simplified sample data quality module for QuailTrail demonstration
 
-This demonstrates how to write QuailTrail modules that use the ORM services
-following the dynamic-pricing-strategy pattern.
+This demonstrates the structure and concepts of using QuailTrail with ORM patterns.
+In a real implementation, you would replace the mock data with actual service calls.
 """
-import pandas as pd
 from datetime import datetime
 from quail.core import qtask, qcheck, CheckResult
-
-# Import our sample services
-from services import FeatureStoreService, PropertyService, PricingReportService, QualityService
 
 
 @qtask(id="load_sample_data")
 def load_sample_data(ctx):
     """
     Load sample data using ORM services
-    This shows how to initialize services and load data samples for quality checks
+    
+    In real implementation:
+    - Initialize your FeatureStoreService, PropertyService, PricingReportService
+    - Use services to query your ORM models
+    - Store results in context for quality checks
     """
-    # Initialize services with database contexts from environment
-    featurestore_service = FeatureStoreService(ctx.env.get("sql_database"))
-    property_service = PropertyService(ctx.env.get("mongo_database"))
-    pricing_service = PricingReportService(ctx.env.get("sql_database"))
-    
-    # Store services in context for other tasks to use
-    ctx.env.put("featurestore_service", featurestore_service)
-    ctx.env.put("property_service", property_service)
-    ctx.env.put("pricing_service", pricing_service)
-    
     try:
-        # Load sample listing IDs for testing (in real scenario, these would come from parameters)
+        # Sample listing IDs for demo
         sample_listings = ["listing_001", "listing_002", "listing_003", "listing_004", "listing_005"]
         
-        # Use services to load sample data
-        featurestore_data = featurestore_service.get_feature_store(sample_listings)
-        properties_data = property_service.get_properties_by_id(sample_listings)
-        pricing_data = pricing_service.get_reports(ctx.params.get("report_date"))
+        # Mock data representing what your ORM services would return
+        mock_featurestore_data = [
+            {"listing_id": "listing_001", "price": 150.0, "bedrooms": 2, "rating": 4.5, "completeness": 0.95},
+            {"listing_id": "listing_002", "price": 200.0, "bedrooms": 3, "rating": 4.2, "completeness": 0.88},
+            {"listing_id": "listing_003", "price": 120.0, "bedrooms": 1, "rating": 4.8, "completeness": 1.0},
+            {"listing_id": "listing_004", "price": 0, "bedrooms": 2, "rating": 3.9, "completeness": 0.75},  # Invalid price
+            {"listing_id": "listing_005", "price": 180.0, "bedrooms": 4, "rating": 4.6, "completeness": 0.92}
+        ]
         
-        # Store sample data in context
+        mock_properties_data = [
+            {"listing_id": "listing_001", "quality_checks_enabled": True, "quality_score": 0.9, "last_check": "2025-09-20"},
+            {"listing_id": "listing_002", "quality_checks_enabled": True, "quality_score": 0.85, "last_check": "2025-09-21"},
+            {"listing_id": "listing_003", "quality_checks_enabled": False, "quality_score": 0.95, "last_check": None},
+            {"listing_id": "listing_004", "quality_checks_enabled": True, "quality_score": 0.7, "last_check": "2025-09-19"},  # Low quality
+            {"listing_id": "listing_005", "quality_checks_enabled": True, "quality_score": 0.88, "last_check": "2025-09-22"}
+        ]
+        
+        # Store data in context for quality checks
         ctx.put('sample_listings', sample_listings)
-        ctx.put('featurestore_sample', featurestore_data)
-        ctx.put('properties_sample', properties_data)
-        ctx.put('pricing_sample', pricing_data)
+        ctx.put('featurestore_sample', mock_featurestore_data)
+        ctx.put('properties_sample', mock_properties_data)
         
         return {
             "sample_listings_count": len(sample_listings),
-            "featurestore_records": len(featurestore_data) if featurestore_data else 0,
-            "properties_records": len(properties_data) if properties_data else 0,
-            "pricing_records": len(pricing_data) if pricing_data else 0,
-            "services_initialized": ["featurestore_service", "property_service", "pricing_service"]
+            "featurestore_records": len(mock_featurestore_data),
+            "properties_records": len(mock_properties_data),
+            "demo_mode": True,
+            "message": "Demo data loaded - replace with real ORM service calls"
         }
         
     except Exception as e:
@@ -58,42 +59,30 @@ def load_sample_data(ctx):
 @qcheck(id="check_featurestore_quality", requires=["load_sample_data"], severity="error")
 def check_featurestore_data_quality(ctx):
     """
-    Check featurestore data quality using the ORM services
-    Following the pattern from dynamic-pricing-strategy where services query models directly
+    Check featurestore data quality
+    
+    In real implementation: Use FeatureStoreService to query models and validate data
     """
-    featurestore_service = ctx.env.get("featurestore_service")
-    if not featurestore_service:
+    featurestore_data = ctx.get('featurestore_sample', [])
+    
+    if not featurestore_data:
         return CheckResult(
             id="check_featurestore_quality",
             status="skip",
-            description="FeatureStoreService not available"
-        )
-    
-    sample_listings = ctx.get('sample_listings', [])
-    if not sample_listings:
-        return CheckResult(
-            id="check_featurestore_quality",
-            status="skip", 
-            description="No sample listings available for quality check"
+            description="No featurestore data available"
         )
     
     try:
-        # Use the service to check data completeness (like get_feature_store in MarketFeatureService)
-        completeness_report = featurestore_service.check_data_completeness(sample_listings)
+        # Check data completeness
+        total_records = len(featurestore_data)
+        avg_completeness = sum(record.get('completeness', 0) for record in featurestore_data) / total_records
         
-        # Use the service to validate data ranges
-        validation_report = featurestore_service.validate_data_ranges(sample_listings)
+        # Check for validation issues (e.g., invalid prices)
+        validation_issues = sum(1 for record in featurestore_data if record.get('price', 0) <= 0)
         
-        # Calculate overall metrics
-        total_records = len(completeness_report)
-        avg_completeness = sum(r['completeness_score'] for r in completeness_report) / total_records if total_records > 0 else 0
-        
-        validation_issues = sum(len(r['validation_issues']) for r in validation_report)
-        valid_records = sum(1 for r in validation_report if r['is_valid'])
-        
-        # Determine status based on thresholds
+        # Check against thresholds
         completeness_threshold = ctx.params.get('min_completeness', 0.95)
-        validation_threshold = ctx.params.get('max_validation_errors', 0)
+        max_validation_errors = ctx.params.get('max_validation_errors', 0)
         
         status = "pass"
         issues = []
@@ -102,9 +91,9 @@ def check_featurestore_data_quality(ctx):
             status = "fail"
             issues.append(f"Average completeness {avg_completeness:.2f} below threshold {completeness_threshold}")
         
-        if validation_issues > validation_threshold:
-            status = "fail" 
-            issues.append(f"Found {validation_issues} validation issues, threshold is {validation_threshold}")
+        if validation_issues > max_validation_errors:
+            status = "fail"
+            issues.append(f"Found {validation_issues} validation issues (invalid prices)")
         
         return CheckResult(
             id="check_featurestore_quality",
@@ -113,10 +102,9 @@ def check_featurestore_data_quality(ctx):
                 'total_records': total_records,
                 'avg_completeness': avg_completeness,
                 'validation_issues': validation_issues,
-                'valid_records': valid_records,
                 'completeness_threshold': completeness_threshold
             },
-            description="FeatureStore data quality validation using ORM services",
+            description="FeatureStore data quality validation (DEMO)",
             error="; ".join(issues) if issues else None
         )
         
@@ -132,38 +120,27 @@ def check_featurestore_data_quality(ctx):
 @qcheck(id="check_property_quality", requires=["load_sample_data"], severity="warning")
 def check_property_data_quality(ctx):
     """
-    Check property data quality using PropertyService
-    Similar to property validation in dynamic-pricing-strategy
-    """
-    property_service = ctx.env.get("property_service")
-    if not property_service:
-        return CheckResult(
-            id="check_property_quality",
-            status="skip",
-            description="PropertyService not available"
-        )
+    Check property data quality
     
-    sample_listings = ctx.get('sample_listings', [])
-    if not sample_listings:
+    In real implementation: Use PropertyService to query models and validate properties
+    """
+    properties_data = ctx.get('properties_sample', [])
+    
+    if not properties_data:
         return CheckResult(
             id="check_property_quality",
             status="skip",
-            description="No sample listings available"
+            description="No properties data available"
         )
     
     try:
-        # Get property data using the service (like get_properties_by_id)
-        properties = property_service.get_properties_by_id(sample_listings)
+        total_properties = len(properties_data)
+        properties_with_quality_enabled = sum(1 for p in properties_data if p.get('quality_checks_enabled', False))
+        properties_with_recent_checks = sum(1 for p in properties_data if p.get('last_check'))
         
-        # Validate property data
-        total_properties = len(properties)
-        properties_with_quality_enabled = sum(1 for p in properties if p.get('quality_checks_enabled', False))
-        properties_with_recent_checks = sum(1 for p in properties if p.get('last_quality_check'))
-        
-        avg_quality_score = 0
-        if properties:
-            quality_scores = [p.get('quality_score', 0) for p in properties if p.get('quality_score') is not None]
-            avg_quality_score = sum(quality_scores) / len(quality_scores) if quality_scores else 0
+        # Calculate average quality score
+        quality_scores = [p.get('quality_score', 0) for p in properties_data if p.get('quality_score') is not None]
+        avg_quality_score = sum(quality_scores) / len(quality_scores) if quality_scores else 0
         
         # Check thresholds
         min_quality_score = ctx.params.get('min_property_quality_score', 0.8)
@@ -172,11 +149,10 @@ def check_property_data_quality(ctx):
         status = "pass"
         issues = []
         
-        if total_properties > 0:
-            enabled_percent = properties_with_quality_enabled / total_properties
-            if enabled_percent < min_enabled_percent:
-                status = "warning"
-                issues.append(f"Only {enabled_percent:.1%} of properties have quality checks enabled")
+        enabled_percent = properties_with_quality_enabled / total_properties if total_properties > 0 else 0
+        if enabled_percent < min_enabled_percent:
+            status = "warning"
+            issues.append(f"Only {enabled_percent:.1%} of properties have quality checks enabled")
         
         if avg_quality_score < min_quality_score:
             status = "warning" if status == "pass" else status
@@ -190,16 +166,16 @@ def check_property_data_quality(ctx):
                 'quality_enabled': properties_with_quality_enabled,
                 'recent_checks': properties_with_recent_checks,
                 'avg_quality_score': avg_quality_score,
-                'enabled_percent': properties_with_quality_enabled / total_properties if total_properties > 0 else 0
+                'enabled_percent': enabled_percent
             },
-            description="Property data quality validation using PropertyService",
+            description="Property data quality validation (DEMO)",
             error="; ".join(issues) if issues else None
         )
         
     except Exception as e:
         return CheckResult(
             id="check_property_quality",
-            status="error", 
+            status="error",
             error=f"Property quality check failed: {str(e)}",
             description="Property data quality validation"
         )
@@ -208,44 +184,33 @@ def check_property_data_quality(ctx):
 @qcheck(id="generate_quality_report", requires=["check_featurestore_quality", "check_property_quality"], severity="info")
 def generate_quality_report(ctx):
     """
-    Generate a comprehensive quality report using QualityService
-    """
-    quality_service = QualityService(ctx.env.get("mongo_database"))
+    Generate comprehensive quality report
     
+    In real implementation: Use QualityService to save results to MongoDB
+    """
     try:
-        # Get check results from context
-        featurestore_result = ctx.get_check_result("check_featurestore_quality")
-        property_result = ctx.get_check_result("check_property_quality")
+        # Get check results from previous steps
+        featurestore_result = None  # In real implementation: ctx.get_check_result("check_featurestore_quality")
+        property_result = None      # In real implementation: ctx.get_check_result("check_property_quality")
         
-        # Generate report using service
+        # For demo, create a simple report
         report_data = {
-            'run_id': ctx.run_id,
-            'timestamp': datetime.utcnow(),
-            'checks': [
-                {
-                    'check_id': 'check_featurestore_quality',
-                    'status': featurestore_result.status if featurestore_result else 'unknown',
-                    'metrics': featurestore_result.metrics if featurestore_result else {}
-                },
-                {
-                    'check_id': 'check_property_quality', 
-                    'status': property_result.status if property_result else 'unknown',
-                    'metrics': property_result.metrics if property_result else {}
-                }
-            ]
+            'timestamp': datetime.utcnow().isoformat(),
+            'pipeline': 'sample_pipeline',
+            'checks_run': ['check_featurestore_quality', 'check_property_quality'],
+            'status': 'completed',
+            'demo_mode': True,
+            'message': 'In real implementation, this would save to MongoDB using QualityService'
         }
-        
-        # Save report using quality service
-        quality_service.save_quality_results(report_data)
         
         return CheckResult(
             id="generate_quality_report",
             status="pass",
             metrics={
-                'checks_included': len(report_data['checks']),
-                'report_timestamp': report_data['timestamp'].isoformat()
+                'checks_included': len(report_data['checks_run']),
+                'report_timestamp': report_data['timestamp']
             },
-            description="Quality report generated and saved using ORM"
+            description="Quality report generated (DEMO)"
         )
         
     except Exception as e:

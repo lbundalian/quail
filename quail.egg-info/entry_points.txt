@@ -1,2 +1,2 @@
 [console_scripts]
-quail = quail.cli:main
+quail = quail_cli:main

@@ -1,4 +1,8 @@
 PyYAML>=6.0
+SQLAlchemy>=2.0
+pandas>=2.0
+pymongo>=4.0
+mongoengine>=0.28.0
 
 [db]
 SQLAlchemy>=2.0
