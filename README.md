@@ -21,22 +21,86 @@
 
 ## 📦 Installation
 
-### 1. Clone the repository
+### Option 1: Install from Source (Recommended for Development)
+
+#### 1. Clone the repository
 ```bash
-git clone https://github.com/QuibbleRM/quailtrail.git
-cd quailtrail
+git clone https://github.com/lbundalian/quail.git
+cd quail
 ```
 
-### 2. Create and activate a virtual environment
+#### 2. Create and activate a virtual environment
 ```bash
 python -m venv .venv
 source .venv/bin/activate   # On Windows: .venv\Scripts\activate
 ```
 
-### 3. Install the package
-For development (auto-reflects changes):
+#### 3. Install QuailTrail
 ```bash
+# For development (editable install - auto-reflects changes)
 pip install -e .
+
+# Or for production use
+pip install .
+```
+
+### Option 2: Install with Optional Dependencies
+
+QuailTrail supports optional dependencies for different use cases:
+
+```bash
+# Install with database support (SQLAlchemy, PostgreSQL, Redshift)
+pip install -e ".[database]"
+
+# Install with MongoDB support
+pip install -e ".[mongodb]"
+
+# Install with analytics support (pandas, numpy)
+pip install -e ".[analytics]"
+
+# Install with all optional dependencies
+pip install -e ".[all]"
+
+# Install for development (includes testing, linting tools)
+pip install -e ".[dev]"
+```
+
+### Option 3: Install Minimal Core Only
+```bash
+# Minimal installation (just YAML and CLI support)
+pip install -e .
+```
+
+### Verify Installation
+```bash
+# Test installation (recommended)
+python verify_installation.py
+
+# Check CLI availability (use module form on Windows)
+python -m quail --help
+
+# Or direct command (if CLI installed properly)
+quail --help
+
+# Create a test project
+python -m quail nest my_test_project
+cd my_test_project
+python -m quail trail --dry-run
+```
+
+### Installation Commands Summary
+```bash
+# Basic installation
+pip install -e .
+
+# With database support (recommended for most projects)
+pip install -e ".[database,mongodb]"
+
+# Full installation with all features
+pip install -e ".[all]"
+
+# Development installation
+pip install -e ".[dev]"
 ```
 
 ---

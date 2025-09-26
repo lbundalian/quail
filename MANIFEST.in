@@ -1,0 +1,36 @@
+# QuailTrail Package Manifest
+# Include important files in the package distribution
+
+# Documentation
+include README.md
+include LICENSE
+include CHANGELOG.md
+
+# Configuration files
+include pyproject.toml
+include setup.py
+
+# Package data
+recursive-include quail *.py
+recursive-include quail *.yml
+recursive-include quail *.yaml
+recursive-include quail *.json
+
+# Examples and templates
+recursive-include examples *.py
+recursive-include examples *.yml
+recursive-include examples *.yaml
+recursive-include examples *.md
+
+# Exclude development and test files
+exclude .gitignore
+exclude .env*
+recursive-exclude tests *
+recursive-exclude prototype *
+recursive-exclude pricing_quality_pipeline *
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
+recursive-exclude * *.egg-info
+recursive-exclude * .DS_Store
+recursive-exclude * .coverage
+recursive-exclude * .pytest_cache

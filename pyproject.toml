@@ -1,24 +1,68 @@
 [project]
-name = "quail"
+name = "quailtrail"
 version = "0.1.0"
-description = "Quail: Snakemake-like trails for QC"
+description = "QuailTrail: Workflow orchestration engine with dependency resolution"
 readme = "README.md"
 requires-python = ">=3.10"
+authors = [
+    {name = "QuailTrail Team"}
+]
+license = {text = "MIT"}
+keywords = ["workflow", "orchestration", "data-quality", "pipeline"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Distributed Computing"
+]
 dependencies = [
     "PyYAML>=6.0",
-    "SQLAlchemy>=2.0",
-    "pandas>=2.0",
-    "pymongo>=4.0",
-    "mongoengine>=0.28.0"
+    "click>=8.0"
 ]
 
 [project.optional-dependencies]
-pandas = ["pandas>=2.0"]
-db = ["SQLAlchemy>=2.0"]
-mongo = ["pymongo>=4.0"]
+# Optional dependencies for specific use cases
+database = [
+    "SQLAlchemy>=1.4,<3.0",
+    "psycopg2-binary>=2.9",
+    "sqlalchemy-redshift>=0.8"
+]
+mongodb = [
+    "pymongo>=4.0",
+    "mongoengine>=0.28.0"
+]
+analytics = [
+    "pandas>=1.5",
+    "numpy>=1.20"
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black>=22.0",
+    "flake8>=5.0"
+]
+# All optional dependencies
+all = [
+    "SQLAlchemy>=1.4,<3.0",
+    "psycopg2-binary>=2.9",
+    "sqlalchemy-redshift>=0.8",
+    "pymongo>=4.0",
+    "mongoengine>=0.28.0",
+    "pandas>=1.5",
+    "numpy>=1.20"
+]
 
 [project.scripts]
-quail = "quail_cli:main"
+quail = "quail.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/lbundalian/quail"
+Repository = "https://github.com/lbundalian/quail"
+Issues = "https://github.com/lbundalian/quail/issues"
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]
