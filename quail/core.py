@@ -153,26 +153,85 @@ class Runner:
 
     def _topo(self, targets: Iterable[str], graph: Dict[str, Callable]) -> List[str]:
         """
-        Simple DFS-based topological order over the combined task/check graph
-        using each node's __qmeta__["requires"].
+        Enhanced DFS-based topological sort with better error handling and cycle detection.
+        This provides advanced dependency resolution for QuailTrail workflows.
         """
-        seen, out = set(), []
-
-        def visit(n: str):
+        seen, temp, out = set(), set(), []
+        
+        def visit(n: str, path: List[str]):
+            if n in temp:
+                cycle_path = " -> ".join(path + [n])
+                raise ValueError(f"Circular dependency detected: {cycle_path}")
+            
             if n in seen:
                 return
-            for d in graph[n].__qmeta__["requires"]:
-                if d not in graph:
-                    raise KeyError(f"Unknown dependency '{d}' required by '{n}'")
-                visit(d)
+            
+            if n not in graph:
+                raise KeyError(f"Unknown node/target: '{n}'. Available: {sorted(graph.keys())}")
+            
+            temp.add(n)
+            
+            # Visit dependencies first
+            requires = graph[n].__qmeta__.get("requires", [])
+            for dep in requires:
+                visit(dep, path + [n])
+            
+            temp.remove(n)
             seen.add(n)
             out.append(n)
-
-        for t in targets:
-            if t not in graph:
-                raise KeyError(f"Unknown node/target: {t}")
-            visit(t)
+        
+        # Process all targets
+        for target in targets:
+            visit(target, [])
+        
         return out
+    
+    def get_execution_plan(self, targets: Iterable[str]) -> Dict[str, Any]:
+        """
+        Generate execution plan showing dependencies and order (workflow dry-run).
+        Returns plan information without executing.
+        """
+        graph = {**_TASKS, **_CHECKS}
+        order = self._topo(targets, graph)
+        
+        plan = {
+            "targets_requested": list(targets),
+            "execution_order": order,
+            "total_steps": len(order),
+            "dependencies": {},
+            "step_types": {}
+        }
+        
+        # Build dependency info
+        for node in order:
+            func = graph[node]
+            meta = func.__qmeta__
+            plan["dependencies"][node] = meta.get("requires", [])
+            plan["step_types"][node] = meta.get("type", "unknown")
+        
+        return plan
+    
+    def print_execution_plan(self, targets: Iterable[str]):
+        """Print execution plan in QuailTrail workflow format"""
+        plan = self.get_execution_plan(targets)
+        
+        self._say("🗂️  **Execution Plan**")
+        self._say(f"Targets: {', '.join(plan['targets_requested'])}")
+        self._say(f"Total steps: {plan['total_steps']}")
+        self._say("")
+        
+        self._say("**Execution Order:**")
+        for i, step in enumerate(plan["execution_order"], 1):
+            step_type = plan["step_types"][step]
+            deps = plan["dependencies"][step]
+            
+            icon = "📋" if step_type == "task" else "✅" if step_type == "check" else "❓"
+            
+            self._say(f"{i:2d}. {icon} {step} [{step_type}]")
+            if deps:
+                self._say(f"     ↳ depends on: {', '.join(deps)}")
+        
+        self._say("")
 
     def run(self, targets: Iterable[str], parallel: bool = False) -> Dict[str, Tuple[str, Any]]:
         """

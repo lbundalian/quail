@@ -14,21 +14,15 @@ if str(HERE) not in sys.path:
 
 def main():
     """Main entry point for python -m quail"""
-    # Try to import the new CLI
+    # Use the QuailTrail CLI
     try:
-        from quail_cli import main as cli_main
-        return cli_main()
+        from .cli import main as quail_main
+        return quail_main()
     except ImportError as e:
-        print(f"Warning: Could not import quail_cli: {e}")
-        # Fallback to original CLI if available
-        try:
-            from .cli import main as old_main
-            return old_main()
-        except ImportError:
-            print("❌ No CLI module found")
-            print("Usage: python -m quail --help")
-            print("Make sure you're in the quailtrail directory")
-            return 1
+        print(f"❌ Could not import QuailTrail CLI: {e}")
+        print("Usage: python -m quail --help")
+        print("Make sure you're in the quailtrail directory")
+        return 1
 
 if __name__ == "__main__":
     sys.exit(main())

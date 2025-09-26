@@ -11,5 +11,7 @@ dist/
 *.egg-info/
 
 # local-only stuff
-prototype/
+pricing_quality_pipeline/
+examples/
+tests/
 .vscode/
