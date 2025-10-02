@@ -1,15 +1,176 @@
-{
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "Quailtrail: smoke",
-      "type": "python",
-      "request": "launch",
-      "program": "${workspaceFolder}/prototype/main.py",
-      "console": "integratedTerminal",
-      "justMyCode": false,
-      "args": ["--config", "quail.yml", "--targets", "daily"]
+// {
+//   "version": "0.2.0",
+//   "configurations": [
+//     {
+//       "name": "Quailtrail: smoke",
+//       "type": "python",
+//       "request": "launch",
+//       "program": "${workspaceFolder}/prototype/main.py",
+//       "console": "integratedTerminal",
+//       "justMyCode": false,
+//       "args": ["--config", "quail.yml", "--targets", "daily"]
       
-    }
-  ]
+//     }
+//   ]
+// }
+
+
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Quailtrail: smoke",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/prototype/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": ["--config", "quail.yml", "--targets", "daily"]
+        },
+        {
+            "name": "QuailTrail - Debug Comprehensive Pipeline",
+            "type": "python",
+            "request": "launch",
+            "module": "quail",
+            "args": [
+                "trail",
+                "comprehensive_pipeline"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/pricing_quality_pipeline",
+            "env": {
+                "PYTHONPATH": "..",
+                "REPORT_DATE": "2025-09-25"
+            },
+            "justMyCode": false,
+            "stopOnEntry": false,
+            "python": "${workspaceFolder}/.conda/python.exe"
+        },
+        {
+            "name": "QuailTrail - Debug Individual Table Checks",
+            "type": "python",
+            "request": "launch",
+            "module": "quail",
+            "args": [
+                "trail",
+                "individual_table_checks"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/pricing_quality_pipeline",
+            "env": {
+                "PYTHONPATH": "..",
+                "REPORT_DATE": "2025-09-25"
+            },
+            "justMyCode": false,
+            "stopOnEntry": false,
+            "python": "${workspaceFolder}/.conda/python.exe"
+        },
+        {
+            "name": "QuailTrail - Debug Cross Table Analysis",
+            "type": "python",
+            "request": "launch",
+            "module": "quail",
+            "args": [
+                "trail",
+                "cross_table_analysis"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/pricing_quality_pipeline",
+            "env": {
+                "PYTHONPATH": "..",
+                "REPORT_DATE": "2025-09-25"
+            },
+            "justMyCode": false,
+            "stopOnEntry": false,
+            "python": "${workspaceFolder}/.conda/python.exe"
+        },
+        {
+            "name": "QuailTrail - Debug Dry Run",
+            "type": "python",
+            "request": "launch",
+            "module": "quail",
+            "args": [
+                "trail",
+                "comprehensive_pipeline",
+                "--dry-run"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/pricing_quality_pipeline",
+            "env": {
+                "PYTHONPATH": ".."
+            },
+            "justMyCode": false,
+            "stopOnEntry": false,
+            "python": "${workspaceFolder}/.conda/python.exe"
+        },
+        {
+            "name": "QuailTrail - Debug Single Task (load_user_data)",
+            "type": "python",
+            "request": "launch",
+            "module": "quail",
+            "args": [
+                "trail",
+                "load_user_data"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/pricing_quality_pipeline",
+            "env": {
+                "PYTHONPATH": "..",
+                "REPORT_DATE": "2025-09-25"
+            },
+            "justMyCode": false,
+            "stopOnEntry": false,
+            "python": "python"
+        },
+        {
+            "name": "QuailTrail - Debug with Custom Date",
+            "type": "python",
+            "request": "launch",
+            "module": "quail",
+            "args": [
+                "trail",
+                "comprehensive_pipeline"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/pricing_quality_pipeline",
+            "env": {
+                "PYTHONPATH": "..",
+                "REPORT_DATE": "2025-09-29"
+            },
+            "justMyCode": false,
+            "stopOnEntry": false,
+            "python": "${workspaceFolder}/.conda/python.exe"
+        },
+        {
+            "name": "QuailTrail - Debug List Targets",
+            "type": "python",
+            "request": "launch",
+            "module": "quail",
+            "args": [
+                "list"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/pricing_quality_pipeline",
+            "env": {
+                "PYTHONPATH": ".."
+            },
+            "justMyCode": false,
+            "stopOnEntry": false,
+            "python": "${workspaceFolder}/.conda/python.exe"
+        },
+        {
+            "name": "Debug Python File (Current)",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": ".."
+            },
+            "justMyCode": false,
+            "args": [],
+            "python": "${workspaceFolder}/.conda/python.exe"
+        }
+    ]
 }
